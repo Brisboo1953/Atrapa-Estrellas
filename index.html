@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <title>Atrapa las Estrellas</title>
 
-    <!-- Phaser -->
     <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
 </head>
 
@@ -12,148 +11,583 @@
 
 <script>
 
-    // Configuración del juego
-    const config = {
-        type: Phaser.AUTO,
+const config = {
+    type: Phaser.AUTO,
 
-        width: 800,
-        height: 600,
+    width: 800,
+    height: 600,
 
-        backgroundColor: "#222222",
+    backgroundColor: "#111827",
 
-        physics: {
-            default: "arcade",
-            arcade: {
-                debug: false
-            }
-        },
-
-        scene: {
-            preload: preload,
-            create: create,
-            update: update
+    physics: {
+        default: "arcade",
+        arcade: {
+            debug: false
         }
-    };
+    },
 
-    // Crear el juego
-    const game = new Phaser.Game(config);
+    scene: {
+        create: create,
+        update: update
+    }
+};
 
-
-    // Variables
-    let jugador;
-    let estrella;
-    let teclas;
-
-    let puntos = 0;
-    let textoPuntos;
+const game = new Phaser.Game(config);
 
 
-    // Cargar recursos
-    function preload() {
+// ==========================
+// VARIABLES
+// ==========================
 
-        // Imagen del jugador
-        this.load.image(
-            "jugador",
-            "https://labs.phaser.io/assets/sprites/phaser-dude.png"
-        );
+let jugador;
+let estrella;
+let estrellaEspecial;
 
-        // Imagen de la estrella
-        this.load.image(
-            "estrella",
-            "https://labs.phaser.io/assets/sprites/star2.png"
-        );
+let teclas;
+
+let puntos = 0;
+let vidas = 3;
+let tiempo = 30;
+
+let textoPuntos;
+let textoVidas;
+let textoTiempo;
+
+let juegoTerminado = false;
+
+// Grupo de obstáculos
+let obstaculos;
+
+
+// ==========================
+// CREAR JUEGO
+// ==========================
+
+function create() {
+
+    // ==========================
+    // JUGADOR
+    // ==========================
+
+    let dibujoJugador = this.add.graphics();
+
+    dibujoJugador.fillStyle(0x00aaff);
+    dibujoJugador.fillRoundedRect(0, 0, 40, 40, 8);
+
+    dibujoJugador.generateTexture(
+        "jugador",
+        40,
+        40
+    );
+
+    dibujoJugador.destroy();
+
+
+    jugador = this.physics.add.sprite(
+        400,
+        500,
+        "jugador"
+    );
+
+
+    // ==========================
+    // ESTRELLA
+    // ==========================
+
+    let dibujoEstrella = this.add.graphics();
+
+    dibujoEstrella.fillStyle(0xffff00);
+
+    dibujoEstrella.beginPath();
+
+    dibujoEstrella.moveTo(20, 0);
+    dibujoEstrella.lineTo(25, 15);
+    dibujoEstrella.lineTo(40, 15);
+    dibujoEstrella.lineTo(28, 25);
+    dibujoEstrella.lineTo(33, 40);
+    dibujoEstrella.lineTo(20, 31);
+    dibujoEstrella.lineTo(7, 40);
+    dibujoEstrella.lineTo(12, 25);
+    dibujoEstrella.lineTo(0, 15);
+    dibujoEstrella.lineTo(15, 15);
+
+    dibujoEstrella.closePath();
+
+    dibujoEstrella.fillPath();
+
+    dibujoEstrella.generateTexture(
+        "estrella",
+        40,
+        40
+    );
+
+    dibujoEstrella.destroy();
+
+
+    estrella = this.physics.add.sprite(
+        Phaser.Math.Between(50, 750),
+        Phaser.Math.Between(80, 550),
+        "estrella"
+    );
+
+
+    // ==========================
+    // ESTRELLA ESPECIAL
+    // ==========================
+
+    let dibujoEspecial = this.add.graphics();
+
+    dibujoEspecial.fillStyle(0xff00ff);
+
+    dibujoEspecial.fillCircle(
+        20,
+        20,
+        20
+    );
+
+    dibujoEspecial.generateTexture(
+        "estrellaEspecial",
+        40,
+        40
+    );
+
+    dibujoEspecial.destroy();
+
+
+    estrellaEspecial = this.physics.add.sprite(
+        Phaser.Math.Between(50, 750),
+        Phaser.Math.Between(80, 550),
+        "estrellaEspecial"
+    );
+
+
+    // ==========================
+    // GRUPO DE OBSTÁCULOS
+    // ==========================
+
+    obstaculos = this.physics.add.group();
+
+
+    // Crear el primer círculo
+    crearObstaculo(this);
+
+
+    // ==========================
+    // CONTROLES
+    // ==========================
+
+    teclas = this.input.keyboard.createCursorKeys();
+
+
+    // ==========================
+    // TEXTO
+    // ==========================
+
+    textoPuntos = this.add.text(
+        20,
+        20,
+        "⭐ Puntos: 0",
+        {
+            fontSize: "26px",
+            fill: "#ffffff"
+        }
+    );
+
+
+    textoVidas = this.add.text(
+        300,
+        20,
+        "❤️ Vidas: 3",
+        {
+            fontSize: "26px",
+            fill: "#ffffff"
+        }
+    );
+
+
+    textoTiempo = this.add.text(
+        620,
+        20,
+        "⏱️ 30",
+        {
+            fontSize: "26px",
+            fill: "#ffffff"
+        }
+    );
+
+
+    // ==========================
+    // COLISIONES
+    // ==========================
+
+    this.physics.add.overlap(
+        jugador,
+        estrella,
+        recogerEstrella,
+        null,
+        this
+    );
+
+
+    this.physics.add.overlap(
+        jugador,
+        estrellaEspecial,
+        recogerEstrellaEspecial,
+        null,
+        this
+    );
+
+
+    // Colisión con los círculos
+    this.physics.add.overlap(
+        jugador,
+        obstaculos,
+        tocarObstaculo,
+        null,
+        this
+    );
+
+
+    // ==========================
+    // TEMPORIZADOR
+    // ==========================
+
+    this.time.addEvent({
+
+        delay: 1000,
+
+        callback: reducirTiempo,
+
+        callbackScope: this,
+
+        loop: true
+
+    });
+
+
+    // ==========================
+    // INSTRUCCIONES
+    // ==========================
+
+    this.add.text(
+        20,
+        570,
+        "Usa las flechas para moverte y evita los círculos",
+        {
+            fontSize: "18px",
+            fill: "#aaaaaa"
+        }
+    );
+}
+
+
+// ==========================
+// ACTUALIZAR
+// ==========================
+
+function update() {
+
+    if (juegoTerminado) {
+        return;
     }
 
 
-    // Crear los elementos
-    function create() {
+    jugador.setVelocity(0);
 
-        // Crear jugador
-        jugador = this.physics.add.sprite(400, 500, "jugador");
 
-        // Reducir tamaño del jugador
-        jugador.setScale(0.7);
+    if (teclas.left.isDown) {
 
-        // Crear estrella
-        estrella = this.physics.add.sprite(
-            Phaser.Math.Between(50, 750),
-            Phaser.Math.Between(50, 400),
-            "estrella"
-        );
+        jugador.setVelocityX(-300);
 
-        // Reducir tamaño de la estrella
-        estrella.setScale(0.7);
+    }
 
-        // Crear teclado
-        teclas = this.input.keyboard.createCursorKeys();
 
-        // Texto de puntuación
-        textoPuntos = this.add.text(
+    if (teclas.right.isDown) {
+
+        jugador.setVelocityX(300);
+
+    }
+
+
+    if (teclas.up.isDown) {
+
+        jugador.setVelocityY(-300);
+
+    }
+
+
+    if (teclas.down.isDown) {
+
+        jugador.setVelocityY(300);
+
+    }
+
+
+    // Evitar salir de la pantalla
+
+    jugador.x = Phaser.Math.Clamp(
+        jugador.x,
+        20,
+        780
+    );
+
+    jugador.y = Phaser.Math.Clamp(
+        jugador.y,
+        60,
+        550
+    );
+}
+
+
+// ==========================
+// ATRAPAR ESTRELLA
+// ==========================
+
+function recogerEstrella() {
+
+    puntos++;
+
+
+    textoPuntos.setText(
+        "⭐ Puntos: " + puntos
+    );
+
+
+    // Mover estrella
+
+    estrella.x =
+        Phaser.Math.Between(50, 750);
+
+    estrella.y =
+        Phaser.Math.Between(80, 550);
+
+
+
+    crearObstaculo(this);
+}
+
+
+// ==========================
+// ESTRELLA ESPECIAL
+// ==========================
+
+function recogerEstrellaEspecial() {
+
+    puntos += 5;
+
+
+    textoPuntos.setText(
+        "⭐ Puntos: " + puntos
+    );
+
+
+    estrellaEspecial.x =
+        Phaser.Math.Between(50, 750);
+
+    estrellaEspecial.y =
+        Phaser.Math.Between(80, 550);
+
+    crearObstaculo(this);
+}
+
+
+// ==========================
+// CREAR OBSTÁCULO
+// ==========================
+
+function crearObstaculo(scene) {
+
+    // Crear textura solamente la primera vez
+
+    if (!scene.textures.exists("obstaculo")) {
+
+        let dibujo = scene.add.graphics();
+
+        dibujo.fillStyle(0xff3333);
+
+        dibujo.fillCircle(
             20,
             20,
-            "Puntos: 0",
-            {
-                fontSize: "28px",
-                fill: "#ffffff"
-            }
+            20
         );
 
-        // Detectar cuando el jugador toca la estrella
-        this.physics.add.overlap(
-            jugador,
-            estrella,
-            recogerEstrella,
-            null,
-            this
+        dibujo.generateTexture(
+            "obstaculo",
+            40,
+            40
         );
+
+        dibujo.destroy();
     }
 
 
-    // Actualizar el juego constantemente
-    function update() {
+    // Crear círculo
 
-        // Detener movimiento
-        jugador.setVelocity(0);
+    let obstaculo = obstaculos.create(
+        Phaser.Math.Between(50, 750),
+        Phaser.Math.Between(80, 550),
+        "obstaculo"
+    );
 
-        // Movimiento izquierda
-        if (teclas.left.isDown) {
-            jugador.setVelocityX(-300);
-        }
+    obstaculo.setVelocity(
+        Phaser.Math.Between(-150, 150),
+        Phaser.Math.Between(-150, 150)
+    );
 
-        // Movimiento derecha
-        if (teclas.right.isDown) {
-            jugador.setVelocityX(300);
-        }
 
-        // Movimiento arriba
-        if (teclas.up.isDown) {
-            jugador.setVelocityY(-300);
-        }
+    obstaculo.setCollideWorldBounds(true);
 
-        // Movimiento abajo
-        if (teclas.down.isDown) {
-            jugador.setVelocityY(300);
-        }
+    obstaculo.setBounce(1);
 
-        // Evitar que el jugador salga de la pantalla
-        jugador.x = Phaser.Math.Clamp(jugador.x, 30, 770);
-        jugador.y = Phaser.Math.Clamp(jugador.y, 30, 570);
+
+    let velocidad = 100 + (puntos * 10);
+
+    obstaculo.setVelocity(
+        Phaser.Math.Between(-velocidad, velocidad),
+        Phaser.Math.Between(-velocidad, velocidad)
+    );
+}
+
+
+// ==========================
+// TOCAR OBSTÁCULO
+// ==========================
+
+function tocarObstaculo(jugador, obstaculo) {
+
+    if (juegoTerminado) {
+        return;
     }
 
 
-    // Cuando se recoge una estrella
-    function recogerEstrella() {
+    vidas--;
 
-        // Aumentar puntos
-        puntos++;
 
-        // Actualizar texto
-        textoPuntos.setText("Puntos: " + puntos);
+    textoVidas.setText(
+        "❤️ Vidas: " + vidas
+    );
 
-        // Mover estrella a una nueva posición
-        estrella.x = Phaser.Math.Between(50, 750);
-        estrella.y = Phaser.Math.Between(50, 550);
+
+    // Mover jugador
+
+    jugador.x = 400;
+    jugador.y = 500;
+
+
+    // Efecto rojo
+
+    jugador.setTint(0xff0000);
+
+
+    setTimeout(function() {
+
+        jugador.clearTint();
+
+    }, 300);
+
+
+    // Si no quedan vidas
+
+    if (vidas <= 0) {
+
+        terminarJuego();
+
     }
+}
+
+
+// ==========================
+// TIEMPO
+// ==========================
+
+function reducirTiempo() {
+
+    if (juegoTerminado) {
+        return;
+    }
+
+
+    tiempo--;
+
+
+    textoTiempo.setText(
+        "⏱️ " + tiempo
+    );
+
+
+    if (tiempo <= 0) {
+
+        terminarJuego();
+
+    }
+}
+
+
+// ==========================
+// GAME OVER
+// ==========================
+
+function terminarJuego() {
+
+    juegoTerminado = true;
+
+
+    jugador.setVelocity(0);
+
+
+    this.add.rectangle(
+        400,
+        300,
+        800,
+        600,
+        0x000000,
+        0.75
+    );
+
+
+    this.add.text(
+        400,
+        250,
+        "GAME OVER",
+        {
+            fontSize: "64px",
+            fill: "#ff4444",
+            fontStyle: "bold"
+        }
+    ).setOrigin(0.5);
+
+
+    this.add.text(
+        400,
+        330,
+        "Puntuación: " + puntos,
+        {
+            fontSize: "32px",
+            fill: "#ffffff"
+        }
+    ).setOrigin(0.5);
+
+
+    this.add.text(
+        400,
+        390,
+        "Presiona R para volver a jugar",
+        {
+            fontSize: "22px",
+            fill: "#ffff00"
+        }
+    ).setOrigin(0.5);
+
+
+    this.input.keyboard.once(
+        "keydown-R",
+        function() {
+
+            location.reload();
+
+        }
+    );
+}
 
 </script>
 
