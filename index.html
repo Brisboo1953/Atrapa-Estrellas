@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Atrapa las Estrellas</title>
+
+    <!-- Phaser -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+</head>
+
+<body>
+
+<script>
+
+    // Configuración del juego
+    const config = {
+        type: Phaser.AUTO,
+
+        width: 800,
+        height: 600,
+
+        backgroundColor: "#222222",
+
+        physics: {
+            default: "arcade",
+            arcade: {
+                debug: false
+            }
+        },
+
+        scene: {
+            preload: preload,
+            create: create,
+            update: update
+        }
+    };
+
+    // Crear el juego
+    const game = new Phaser.Game(config);
+
+
+    // Variables
+    let jugador;
+    let estrella;
+    let teclas;
+
+    let puntos = 0;
+    let textoPuntos;
+
+
+    // Cargar recursos
+    function preload() {
+
+        // Imagen del jugador
+        this.load.image(
+            "jugador",
+            "https://labs.phaser.io/assets/sprites/phaser-dude.png"
+        );
+
+        // Imagen de la estrella
+        this.load.image(
+            "estrella",
+            "https://labs.phaser.io/assets/sprites/star2.png"
+        );
+    }
+
+
+    // Crear los elementos
+    function create() {
+
+        // Crear jugador
+        jugador = this.physics.add.sprite(400, 500, "jugador");
+
+        // Reducir tamaño del jugador
+        jugador.setScale(0.7);
+
+        // Crear estrella
+        estrella = this.physics.add.sprite(
+            Phaser.Math.Between(50, 750),
+            Phaser.Math.Between(50, 400),
+            "estrella"
+        );
+
+        // Reducir tamaño de la estrella
+        estrella.setScale(0.7);
+
+        // Crear teclado
+        teclas = this.input.keyboard.createCursorKeys();
+
+        // Texto de puntuación
+        textoPuntos = this.add.text(
+            20,
+            20,
+            "Puntos: 0",
+            {
+                fontSize: "28px",
+                fill: "#ffffff"
+            }
+        );
+
+        // Detectar cuando el jugador toca la estrella
+        this.physics.add.overlap(
+            jugador,
+            estrella,
+            recogerEstrella,
+            null,
+            this
+        );
+    }
+
+
+    // Actualizar el juego constantemente
+    function update() {
+
+        // Detener movimiento
+        jugador.setVelocity(0);
+
+        // Movimiento izquierda
+        if (teclas.left.isDown) {
+            jugador.setVelocityX(-300);
+        }
+
+        // Movimiento derecha
+        if (teclas.right.isDown) {
+            jugador.setVelocityX(300);
+        }
+
+        // Movimiento arriba
+        if (teclas.up.isDown) {
+            jugador.setVelocityY(-300);
+        }
+
+        // Movimiento abajo
+        if (teclas.down.isDown) {
+            jugador.setVelocityY(300);
+        }
+
+        // Evitar que el jugador salga de la pantalla
+        jugador.x = Phaser.Math.Clamp(jugador.x, 30, 770);
+        jugador.y = Phaser.Math.Clamp(jugador.y, 30, 570);
+    }
+
+
+    // Cuando se recoge una estrella
+    function recogerEstrella() {
+
+        // Aumentar puntos
+        puntos++;
+
+        // Actualizar texto
+        textoPuntos.setText("Puntos: " + puntos);
+
+        // Mover estrella a una nueva posición
+        estrella.x = Phaser.Math.Between(50, 750);
+        estrella.y = Phaser.Math.Between(50, 550);
+    }
+
+</script>
+
+</body>
+</html>
